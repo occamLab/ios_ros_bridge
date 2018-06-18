@@ -4,7 +4,6 @@
 Pose server for iOS to ROS
 """
 
-from udp import UDPhandle
 from handle_udp import extractUDP
 import rospy
 from sensor_msgs.msg import CompressedImage, PointCloud
