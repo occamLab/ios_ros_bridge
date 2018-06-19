@@ -1,3 +1,5 @@
+''' Gets UDP data from a given port. '''
+
 import socket
 
 def extractUDP(udp_port):

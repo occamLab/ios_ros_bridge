@@ -36,9 +36,7 @@ def handle_pose():
 
     pose_data = extractUDP(udp_port=35601)
     pose_vals = pose_data.split(",")
-    position_vals = pose_vals[12:15]
     ios_timestamp = pose_vals[16]
-
 
     ROS_timestamp = rospy.Time.now()
     if not(ios_clock_valid):
@@ -50,42 +48,21 @@ def handle_pose():
     msg = PoseStamped()
     msg.header.stamp = rospy.Time(ios_clock_offset + float(ios_timestamp))
     msg.header.frame_id = coordinate_frame
-    eulers = pose_vals[17:]
-    # quat = quaternion_from_euler(float(eulers[0])*-1, float(eulers[1])*-1, float(eulers[2]), axes="sxyz")
+
     pose_vals = [float(x) for x in pose_vals[:16]]
+    #Get the transformation matrix from the server and transpose it to row-major order
     rotation_matrix = np.matrix([pose_vals[0:4], pose_vals[4:8], pose_vals[8:12], pose_vals[12:16]]).T
 
-    # rotation_matrix = np.hstack((-rotation_matrix[:,2], -rotation_matrix[:,0], rotation_matrix[:,1], rotation_matrix[:,3]))
-    # rotation_matrix = np.asarray(rotation_matrix)
-
+    #Changing from the iOS coordinate space to the ROS coordinate space.
     change_basis = np.matrix([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
-    # change_basis.T
     change_basis2 = np.matrix([[0,0,-1,0],[0,-1,0,0],[-1,0,0,0],[0,0,0,1]])
-    print rotation_matrix
+    #Left multiplying swaps rows, right multiplying swaps columns
     new_mat = change_basis*rotation_matrix*change_basis2
-    print new_mat
     new_mat = new_mat.A
-    print "test", type(new_mat)
 
-
-    # rotation_mat = np.array([pose_vals[0:4], pose_vals[4:8], pose_vals[8:12], pose_vals[12:16]]).T
-    # print(rotation_matrix)
-    # eulers = [float(eulers[i]) for i in range(len(eulers))]
-    # temp = eulers[0]
-    # eulers[0] = eulers[1]
-    # eulers[1] = temp
-    #
-    # new_mat = compose_matrix(angles=eulers, translate=[float(position_vals[i]) for i in range(len(position_vals))])
-    # rotation_matrix[[0,1]] = rotation_matrix[[1,0]]
-    #eulers = pose_vals[17:]
+    #Get the position and orientation from the transformed matrix.
     trans = translation_from_matrix(new_mat)
-    #new_mat = np.hstack((rotation_matrix[:,1], rotation_matrix[:,0], rotation_matrix[:,2], rotation_matrix[:,3]))
     quat = quaternion_from_matrix(new_mat)
-    #
-    # msg.pose.position.x = -float(position_vals[2])
-    # msg.pose.position.y = float(position_vals[0])
-    # msg.pose.position.z = float(position_vals[1])
-    print trans, type(trans)
 
     msg.pose.position.x = trans[0]
     msg.pose.position.y = trans[1]
@@ -98,16 +75,11 @@ def handle_pose():
 
     print msg
 
-
     br.sendTransform([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z],
                      [msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w],
                      msg.header.stamp,
                      "real_device",
                      "odom")
-
-
-
-
 
     pub_pose.publish(msg)
 
