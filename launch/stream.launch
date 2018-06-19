@@ -1,6 +1,6 @@
 <launch>
 
-  <node pkg="ios_streamer" type="pose_server.py" name="pose_server">
+  <node pkg="ios_streamer" type="pose_server.py" name="pose_server" output="screen">
    <param name="port_number" value="35601" type="int"/>
    <param name="pose_topic" value="ios_pose"/>
    <param name="coordinate_frame" value="odom"/>
