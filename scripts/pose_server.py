@@ -11,7 +11,6 @@ from geometry_msgs.msg import PoseStamped, Point32
 from std_msgs.msg import Float64, Float64MultiArray, String, Int32
 import sys
 from tf.transformations import *
-from math import pi
 import numpy as np
 import tf
 
