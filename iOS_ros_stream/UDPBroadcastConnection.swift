@@ -9,11 +9,6 @@
 import Foundation
 import Darwin
 
-// Addresses
-
-let INADDR_ANY = in_addr(s_addr: 0)
-let INADDR_BROADCAST = in_addr(s_addr: 0xffffffff)
-
 
 /// An object representing the UDP broadcast connection. Uses a dispatch source to handle the incoming traffic on the UDP socket.
 open class UDPBroadcastConnection {
@@ -24,7 +19,7 @@ open class UDPBroadcastConnection {
     var address: sockaddr_in
     
     /// Closure that handles incoming UDP packets.
-    var handler: ((_ ipAddress: String, _ port: Int, _ response: [UInt8]) -> Void)?
+    var handler: ((_ port: Int, _ response: [UInt8]) -> Void)?
     
     /// A dispatch source for reading data from the UDP socket.
     var responseSource: DispatchSourceRead?
@@ -39,12 +34,12 @@ open class UDPBroadcastConnection {
      
      - returns: Returns an initialized UDP broadcast connection.
      */
-    public init(port: UInt16, handler: ((_ ipAddress: String, _ port: Int, _ response: [UInt8]) -> Void)?) {
+    public init(port: UInt16, ip: in_addr, handler: ((_ port: Int, _ response: [UInt8]) -> Void)?) {
         self.address = sockaddr_in(
             sin_len:    __uint8_t(MemoryLayout<sockaddr_in>.size),
             sin_family: sa_family_t(AF_INET),
             sin_port:   UDPBroadcastConnection.htonsPort(port: port),
-            sin_addr:   INADDR_BROADCAST,
+            sin_addr:   ip,
             sin_zero:   ( 0, 0, 0, 0, 0, 0, 0, 0 )
         )
         
@@ -131,7 +126,7 @@ open class UDPBroadcastConnection {
             print("UDP connection received \(bytesRead) bytes from \(endpoint.host):\(endpoint.port)")
             
             // Handle response
-            self.handler?(endpoint.host, endpoint.port, response)
+            self.handler?(endpoint.port, response)
         }
         
         newResponseSource.resume()
@@ -183,7 +178,7 @@ open class UDPBroadcastConnection {
             
             if sent == broadcastMessageLength {
                 // Success
-                print("UDP connection sent \(broadcastMessageLength) bytes")
+            //    print("UDP connection sent \(broadcastMessageLength) bytes")
             }
         }
     }

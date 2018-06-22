@@ -12,6 +12,8 @@ struct Config {
     
     struct Ports {
         static let broadcast = UInt16(35601)
+        static let broadcastImages = UInt16(35602)
+        static let broadcastCameraIntrinsics = UInt16(35603)
     }
     
 }
