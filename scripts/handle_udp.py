@@ -1,8 +1,11 @@
-''' Gets UDP data from a given port. '''
+'''
+OccamLab: iOS ROS Bridge - Extract UDP Data
+'''
 
 import socket
 
 def extractUDP(udp_port):
+    ''' Gets UDP data from a given port. '''
 
     UDP_IP = "0.0.0.0"
     UDP_PORT = udp_port

@@ -1,86 +1,106 @@
 #!/usr/bin/env python
 
-"""
-Pose server for iOS to ROS
-"""
+'''
+OccamLab: iOS ROS Bridge - Pose Server
+author: @danielconnolly
+'''
 
-from handle_udp import extractUDP
+import sys
+import numpy as np
+from math import pi
 import rospy
-from sensor_msgs.msg import CompressedImage, PointCloud
 from geometry_msgs.msg import PoseStamped, Point32
 from std_msgs.msg import Float64, Float64MultiArray, String, Int32
-import sys
-from tf.transformations import *
-import numpy as np
+from tf.transformations import quaternion_multiply, quaternion_about_axis, quaternion_from_matrix, translation_from_matrix
 import tf
+from handle_udp import extractUDP
 
-ios_clock_valid = False
-ios_clock_offset = -1.0
+class PoseServer:
+    """ Pose server for iOS to ROS """
 
-rospy.init_node("iOS_pose")
-last_timestamp = rospy.Time.now()
+    def __init__(self):
+        ''' Initialize the server to enable the collection and publication of pose data.'''
+        rospy.init_node('iOS_pose')
+        self.port = rospy.get_param('~port_number')
+        self.pose_topic = rospy.get_param('~pose_topic')
+        self.coordinate_frame = rospy.get_param('~coordinate_frame')
+        self.pub_pose = rospy.Publisher(self.pose_topic, PoseStamped, queue_size=10)
+        self.pub_clock = rospy.Publisher('/ios_clock', Float64, queue_size=10)
+        self.br = tf.TransformBroadcaster()
+        self.ios_clock_valid = False
+        self.ios_clock_offset = -1.0
+        self.last_timestamp = rospy.Time.now()
+        self.msg = PoseStamped()
+        self.msg.header.frame_id = self.coordinate_frame
+        self.pose_vals = None
+        self.ios_timestamp = None
+        self.rotation_matrix = None
+        self.pose_data = None
 
-port = rospy.get_param('~port_number')
-pose_topic = rospy.get_param('~pose_topic')
-coordinate_frame = rospy.get_param('~coordinate_frame')
-pub_pose = rospy.Publisher(pose_topic, PoseStamped, queue_size=10)
-pub_clock = None
-pub_clock = rospy.Publisher('/ios_clock', Float64, queue_size=10)
-br = tf.TransformBroadcaster()
+    def get_data(self):
+        ''' Get pose data from the udp port. '''
+        self.pose_data = extractUDP(udp_port=self.port)
+        self.pose_vals = self.pose_data.split(",")
 
-def handle_pose():
-    global ios_clock_valid
-    global ios_clock_offset
-    global last_timestamp
+    def handle_ios_clock(self):
+        ''' Handle differences in time between the iOS device and ROS. '''
+        self.ios_timestamp = self.pose_vals[16]
+        ROS_timestamp = rospy.Time.now()
+        if not self.ios_clock_valid:
+            self.ios_clock_offset = ROS_timestamp.to_time() - float(self.ios_timestamp)
+        self.pub_clock.publish(self.ios_clock_offset)
+        self.msg.header.stamp = rospy.Time(self.ios_clock_offset + float(self.ios_timestamp))
 
-    pose_data = extractUDP(udp_port=35601)
-    pose_vals = pose_data.split(",")
-    ios_timestamp = pose_vals[16]
+    def process_pose(self):
+        ''' Get the position and orientation of the device from the iOS device. '''
+        self.pose_vals = [float(x) for x in self.pose_vals[:16]]
+        #Get the transformation matrix from the server and transpose it to row-major order
+        self.rotation_matrix = np.matrix([self.pose_vals[0:4], self.pose_vals[4:8], self.pose_vals[8:12], self.pose_vals[12:16]]).T
+        #Changing from the iOS coordinate space to the ROS coordinate space.
+        change_basis = np.matrix([[0, 0, -1, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+        change_basis2 = np.matrix([[0, 0, -1, 0], [0, -1, 0, 0], [-1, 0, 0, 0], [0, 0, 0, 1]])
+        #Left multiplying swaps rows, right multiplying swaps columns
+        new_mat = change_basis*self.rotation_matrix*change_basis2
+        new_mat = new_mat.A
 
-    ROS_timestamp = rospy.Time.now()
-    if not(ios_clock_valid):
-        ios_clock_offset = ROS_timestamp.to_time() - float(ios_timestamp)
-        ios_clock_valid = True
+        #Get the position and orientation from the transformed matrix.
+        trans = translation_from_matrix(new_mat)
+        quat = quaternion_from_matrix(new_mat)
 
-    pub_clock.publish(ios_clock_offset)
+        self.msg.pose.position.x = trans[0]
+        self.msg.pose.position.y = trans[1]
+        self.msg.pose.position.z = trans[2]
 
-    msg = PoseStamped()
-    msg.header.stamp = rospy.Time(ios_clock_offset + float(ios_timestamp))
-    msg.header.frame_id = coordinate_frame
+        self.msg.pose.orientation.x = quat[0]
+        self.msg.pose.orientation.y = quat[1]
+        self.msg.pose.orientation.z = quat[2]
+        self.msg.pose.orientation.w = quat[3]
 
-    pose_vals = [float(x) for x in pose_vals[:16]]
-    #Get the transformation matrix from the server and transpose it to row-major order
-    rotation_matrix = np.matrix([pose_vals[0:4], pose_vals[4:8], pose_vals[8:12], pose_vals[12:16]]).T
 
-    #Changing from the iOS coordinate space to the ROS coordinate space.
-    change_basis = np.matrix([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
-    change_basis2 = np.matrix([[0,0,-1,0],[0,-1,0,0],[-1,0,0,0],[0,0,0,1]])
-    #Left multiplying swaps rows, right multiplying swaps columns
-    new_mat = change_basis*rotation_matrix*change_basis2
-    new_mat = new_mat.A
+    def run(self):
+        ''' Publish pose data and enable visualization of the device and camera axes. '''
+        while not rospy.is_shutdown():
+            self.get_data()
+            self.handle_ios_clock()
+            self.process_pose()
+            self.br.sendTransform([self.msg.pose.position.x, self.msg.pose.position.y, self.msg.pose.position.z],
+                                  [self.msg.pose.orientation.x, self.msg.pose.orientation.y, self.msg.pose.orientation.z, self.msg.pose.orientation.w],
+                                  self.msg.header.stamp,
+                                  "real_device",
+                                  "odom")
 
-    #Get the position and orientation from the transformed matrix.
-    trans = translation_from_matrix(new_mat)
-    quat = quaternion_from_matrix(new_mat)
+            # Convert from ROS device coordinate frame to ROS camera frame
+            camera_quat1 = quaternion_about_axis(pi/2, [0, 1, 0])
+            camera_quat2 = quaternion_about_axis(pi/2, [0, 0, -1])
 
-    msg.pose.position.x = trans[0]
-    msg.pose.position.y = trans[1]
-    msg.pose.position.z = trans[2]
+            self.br.sendTransform([0.0, 0.0, 0.0],
+                                  quaternion_multiply(camera_quat1, camera_quat2),
+                                  self.msg.header.stamp,
+                                  "camera",
+                                  "real_device")
 
-    msg.pose.orientation.x = quat[0]
-    msg.pose.orientation.y = quat[1]
-    msg.pose.orientation.z = quat[2]
-    msg.pose.orientation.w = quat[3]
+            self.pub_pose.publish(self.msg)
 
-    print msg
-
-    br.sendTransform([msg.pose.position.x, msg.pose.position.y, msg.pose.position.z],
-                     [msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w],
-                     msg.header.stamp,
-                     "real_device",
-                     "odom")
-
-    pub_pose.publish(msg)
-
-while True:
-    handle_pose()
+if __name__ == '__main__':
+    node = PoseServer()
+    node.run()
