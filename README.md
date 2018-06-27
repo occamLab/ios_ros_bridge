@@ -7,11 +7,15 @@ Built For OccamLab @Olin College 2018
 ### Running the iOS ROS Streamer
 
 Steps:
-(1) Enter your catkin workspace directory
-      (a) For directions on creating a catkin workspace, see http://wiki.ros.org/catkin/Tutorials/create_a_workspace
+
+(1) Enter your catkin workspace directory (For directions on creating a catkin workspace, see http://wiki.ros.org/catkin/Tutorials/create_a_workspace)
+
 (2) Run `roscore` in your terminal
+
 (3) Open a new terminal window and run `roslaunch ios_streamer stream.launch`
+
 (4) To view different visualizations of the data being streamed, you may choose to run either `rosrun rqt_gui rqt_gui` or `rviz` in another terminal window
+
 (5) If you have OccamLab's mobility_games repository cloned to your device, you may choose to run `roslaunch mobility_sensing ar_localization.launch` in order to view visualizations of april tag detections in either rviz or the rqt gui. You will need to first change the namespace for the apriltags_ros package from `camera` to `camera_lowres`. You may also want to add tag descriptions for the april tags.
 
 If you find the streamer has significant lag, please try relaunching the iOS app.
