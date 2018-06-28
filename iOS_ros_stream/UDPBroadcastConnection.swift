@@ -1,6 +1,8 @@
 //
 //  UDPBroadcastConnection.swift
 //  iOS_ros_stream
+//  Set up a UDP connection so data can be sent to ROS
+//  With minor modifications, UDPBroadcastConnection is from: https://github.com/gunterhager/UDPBroadcastConnection
 //
 //  Created by scope on 6/12/18.
 //  Copyright © 2018 occamlab. All rights reserved.
