@@ -26,7 +26,12 @@ If you find the streamer has significant lag, please try relaunching the iOS app
 
 (2) Clone this directory into `catkin_ws/src`.
 
-(3) Enter your `catkin_ws` direction and run `catkin_make install`.
+(3) Enter your `catkin_ws` direction and run the following commands:
+
+```bash
+$ catkin_make install
+$ source devel/setup.bash
+```
 
 (4) Follow instructions above from step (2)!
 
