@@ -8,7 +8,7 @@ Built For OccamLab @Olin College 2018
 
 Steps:
 
-(1) Enter your catkin workspace directory (For directions on creating a catkin workspace, see http://wiki.ros.org/catkin/Tutorials/create_a_workspace)
+(1) Enter your catkin workspace directory
 
 (2) Run `roscore` in your terminal
 
@@ -20,6 +20,15 @@ Steps:
 
 If you find the streamer has significant lag, please try relaunching the iOS app.
 
+#### First time setup
+
+(1) Make sure you have a catkin workspace! (If you don't, here are [instructions for setting up a catkin workspace](http://wiki.ros.org/catkin/Tutorials/create_a_workspace)).
+
+(2) Clone this directory into `catkin_ws/src`.
+
+(3) Enter your `catkin_ws` direction and run `catkin_make install`.
+
+(4) Follow instructions above from step (2)!
 
 #### Attributions:
 The following provides the basis for how data is sent from an iOS device via UDP connection to a computer:
